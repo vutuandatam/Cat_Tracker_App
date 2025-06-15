@@ -7,14 +7,14 @@
   "theme_color": "#333333",
   "icons": [
     {
-      "src": "/static/icons/anh nhi.png",
+      "src": "/static/icons/anh nhi.jpg",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/jpg"
     },
     {
-      "src": "/static/icons/si lun.png",
+      "src": "/static/icons/si lun.jpg",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/jpg"
     }
   ]
 }

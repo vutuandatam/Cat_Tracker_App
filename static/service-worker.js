@@ -5,8 +5,8 @@ self.addEventListener("install", e => {
       return cache.addAll([
         "/",
         "/static/style.css",
-        "/static/icons/anh nhi.png",
-        "/static/icons/si lun.png"
+        "/static/icons/anh nhi.jpg",
+        "/static/icons/si lun.jpg"
       ]);
     })
   );
