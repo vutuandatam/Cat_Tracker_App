@@ -4,8 +4,14 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from video import generate_video, set_source, toggle_detection, detection_enabled
 import asyncio
+from fastapi import File,UploadFile
+import cv2
+import base64
+import numpy as np
+from ultralytics import YOLO
 
 app = FastAPI()
+model = YOLO("yolov8n.pt")
 templates = Jinja2Templates(directory="templates")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
@@ -52,3 +58,16 @@ async def notify_clients(enabled: bool):
         except:
             to_remove.add(client)
     clients.difference_update(to_remove)
+@app.post("/upload_frame")
+async def upload_frame(file: UploadFile = File(...)):
+    contents = await file.read()
+    nparr = np.frombuffer(contents, np.uint8)
+    frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+
+    results = model(frame)[0]
+    annotated = results.plot()
+
+    _, jpeg = cv2.imencode(".jpg", annotated)
+    b64 = base64.b64encode(jpeg.tobytes()).decode("utf-8")
+    return {"result": b64}
+

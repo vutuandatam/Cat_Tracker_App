@@ -1,6 +1,6 @@
 import cv2
 from ultralytics import YOLO
-
+import numpy as np
 model = YOLO("yolov8n.pt")
 sources = {
     "0": 0,
@@ -46,3 +46,4 @@ def generate_video():
 
         _, buffer = cv2.imencode(".jpg", frame)
         yield (b"--frame\r\nContent-Type: image/jpeg\r\n\r\n" + buffer.tobytes() + b"\r\n")
+
