@@ -1,162 +1,73 @@
 <!DOCTYPE html>
 <html>
-
 <head>
-    <meta charset="utf-8">
-    <title>Cat Tracker App</title>
-    <style>
-        body {
-            font-family: Arial;
-            text-align: center;
-            background-color: #f5f5f5;
-        }
-
-        h1 {
-            color: #333;
-        }
-
-        video,
-        img {
-            border: 2px solid #333;
-            border-radius: 8px;
-        }
-
-        .controls {
-            margin-top: 20px;
-        }
-
-        button,
-        select {
-            margin: 5px;
-            padding: 10px 15px;
-            font-size: 16px;
-            border-radius: 6px;
-        }
-
-        .toggle-btn {
-            color: white;
-            border: none;
-            cursor: pointer;
-        }
-
-        .enabled {
-            background-color: green;
-        }
-
-        .disabled {
-            background-color: gray;
-        }
-
-        #statusLabel {
-            display: inline-block;
-            margin-left: 10px;
-            font-weight: bold;
-            font-size: 16px;
-            vertical-align: middle;
-        }
-    </style>
+  <meta charset="utf-8">
+  <title>Cat Tracker 🐱</title>
+  <style>
+    body {
+      font-family: Arial; background: #f2f2f2;
+      display: flex; flex-direction: column; align-items: center;
+    }
+    h1 { margin-top: 20px; }
+    video, img {
+      border: 3px solid #333; border-radius: 10px;
+      margin: 10px; width: 640px; height: 480px;
+    }
+    #status {
+      font-size: 18px; font-weight: bold; margin-top: 10px;
+    }
+  </style>
 </head>
-
 <body>
-    <h1>Real-time Cat Tracker 🐾</h1>
-    <img id="video-stream" src="{{ url_for('video_feed') }}" width="640" height="480">
-    <h3>Xử lý qua webcam của trình duyệt (gửi ảnh về server)</h3>
-    <video id="webcam" autoplay playsinline width="640" height="480"></video>
-    <canvas id="canvas" style="display:none;"></canvas>
-    <img id="processed" width="640" height="480" />
+  <h1>Live Cat Detection 🐾</h1>
 
-    <div class="controls">
-        <h3>Chọn nguồn video</h3>
-        <select id="source-select">
-            <option value="0">Webcam</option>
-            <option value="rtsp://example.com/stream">RTSP Stream</option>
-            <option value="video.mp4">Video file</option>
-        </select>
-        <button onclick="changeSource()">Đổi nguồn</button>
+  <!-- Webcam trực tiếp từ trình duyệt -->
+  <video id="webcam" autoplay playsinline></video>
 
-        <h3>Điều khiển mô hình</h3>
-        <button id="toggleBtn" class="toggle-btn">Bật/Tắt Phát hiện</button>
-        <span id="statusLabel">Đang tải...</span>
-    </div>
+  <!-- Kết quả YOLO từ server -->
+  <img id="processed" alt="Processed frame will appear here" />
 
-    <script>
-        const toggleBtn = document.getElementById("toggleBtn");
-        const statusLabel = document.getElementById("statusLabel");
+  <!-- Canvas ẩn để chụp ảnh -->
+  <canvas id="canvas" style="display: none;"></canvas>
 
-        function updateUI(isEnabled) {
-            if (isEnabled) {
-                toggleBtn.classList.remove("disabled");
-                toggleBtn.classList.add("enabled");
-                statusLabel.textContent = "🚀 Phát hiện đang BẬT";
-            } else {
-                toggleBtn.classList.remove("enabled");
-                toggleBtn.classList.add("disabled");
-                statusLabel.textContent = "🛑 Phát hiện đang TẮT";
-            }
-        }
+  <div id="status">⏳ Đang gửi và xử lý ảnh...</div>
 
-        async function toggleDetection() {
-            const res = await fetch('/toggle_detection', { method: 'POST' });
-            const data = await res.json();
-            updateUI(data.enabled);
-        }
+  <script>
+    const webcam = document.getElementById('webcam');
+    const canvas = document.getElementById('canvas');
+    const processed = document.getElementById('processed');
+    const status = document.getElementById('status');
 
-        function changeSource() {
-            const src = document.getElementById('source-select').value;
-            fetch('/set_source', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ source: src })
-            }).then(res => {
-                if (res.ok) alert("Nguồn đã đổi thành công!");
-                else alert("Lỗi đổi nguồn!");
-            });
-        }
+    // Bật webcam
+    navigator.mediaDevices.getUserMedia({ video: true }).then(stream => {
+      webcam.srcObject = stream;
+    });
 
-        // Gọi 1 lần khi tải trang để hiển thị trạng thái đúng
-        fetch('/status')
-            .then(res => res.json())
-            .then(data => updateUI(data.enabled));
+    // Gửi ảnh mỗi 1s
+    setInterval(() => {
+      const ctx = canvas.getContext('2d');
+      canvas.width = webcam.videoWidth;
+      canvas.height = webcam.videoHeight;
+      ctx.drawImage(webcam, 0, 0, canvas.width, canvas.height);
 
-        toggleBtn.onclick = toggleDetection;
+      canvas.toBlob(blob => {
+        const formData = new FormData();
+        formData.append("file", blob, "frame.jpg");
 
-        // Kết nối WebSocket để nhận trạng thái tự động
-        const socket = new WebSocket(`ws://${location.host}/ws/status`);
-        socket.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-            updateUI(data.enabled);
-        };
-        // Webcam → gửi ảnh về server mỗi 1s
-        const video = document.getElementById("webcam");
-        const canvas = document.getElementById("canvas");
-        const img = document.getElementById("processed");
-
-        navigator.mediaDevices.getUserMedia({ video: true }).then(stream => {
-            video.srcObject = stream;
+        fetch("/upload_frame", {
+          method: "POST",
+          body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+          processed.src = "data:image/jpeg;base64," + data.result;
+          status.textContent = "✅ Đã xử lý!";
+        })
+        .catch(err => {
+          status.textContent = "❌ Lỗi xử lý: " + err;
         });
-
-        setInterval(() => {
-            const ctx = canvas.getContext("2d");
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-            canvas.toBlob(blob => {
-                const formData = new FormData();
-                formData.append("file", blob, "frame.jpg");
-
-                fetch("/upload_frame", {
-                    method: "POST",
-                    body: formData
-                })
-                    .then(res => res.json())
-                    .then(data => {
-                        img.src = "data:image/jpeg;base64," + data.result;
-                    });
-            }, "image/jpeg");
-        }, 1000); // gửi mỗi 1 giây
-
-    </script>
+      }, "image/jpeg");
+    }, 1000); // gửi mỗi giây
+  </script>
 </body>
-
 </html>
