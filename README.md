@@ -57,9 +57,6 @@ Create a new Web Service
 
 Set the start command to:
 
-bash
-Sao chép
-Chỉnh sửa
 uvicorn main:app --host 0.0.0.0 --port 10000
 Make sure to set the correct Python version and install from requirements.txt
 
