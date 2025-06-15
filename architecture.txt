@@ -1,0 +1,20 @@
++------------------+           +---------------------+
+|  Webcam / RTSP   | ========> |  YOLOv8 (Python)    |
+|  hoặc video file |           |  Flask (stream API) |
++------------------+           +----------+----------+
+                                          |
+                                          v
+                             +------------------------+
+                             |  Web Frontend (HTML +  |
+                             |  JS - Video Streaming) |
+                             +------------------------+
+
+
+Cat_Tracker_App/
+│
+├── main.py              # FastAPI server chính
+├── video.py             # Xử lý stream + YOLO
+├── templates/
+│   └── index.html       # HTML UI
+└── static/
+    └── script.js        # (tùy chọn) JS riêng

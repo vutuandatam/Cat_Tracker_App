@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Cat Tracker App</title>
+  <style>
+    body { font-family: Arial; text-align: center; background-color: #f5f5f5; }
+    h1 { color: #333; }
+    video, img { border: 2px solid #333; border-radius: 8px; }
+    .controls { margin-top: 20px; }
+    button, select {
+      margin: 5px; padding: 10px 15px;
+      font-size: 16px; border-radius: 6px;
+    }
+    .toggle-btn {
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    .enabled {
+      background-color: green;
+    }
+    .disabled {
+      background-color: gray;
+    }
+    #statusLabel {
+      display: inline-block;
+      margin-left: 10px;
+      font-weight: bold;
+      font-size: 16px;
+      vertical-align: middle;
+    }
+  </style>
+</head>
+<body>
+  <h1>Real-time Cat Tracker 🐾</h1>
+  <img id="video-stream" src="{{ url_for('video_feed') }}" width="640" height="480">
+
+  <div class="controls">
+    <h3>Chọn nguồn video</h3>
+    <select id="source-select">
+      <option value="0">Webcam</option>
+      <option value="rtsp://example.com/stream">RTSP Stream</option>
+      <option value="video.mp4">Video file</option>
+    </select>
+    <button onclick="changeSource()">Đổi nguồn</button>
+
+    <h3>Điều khiển mô hình</h3>
+    <button id="toggleBtn" class="toggle-btn">Bật/Tắt Phát hiện</button>
+    <span id="statusLabel">Đang tải...</span>
+  </div>
+
+  <script>
+    const toggleBtn = document.getElementById("toggleBtn");
+    const statusLabel = document.getElementById("statusLabel");
+
+    function updateUI(isEnabled) {
+      if (isEnabled) {
+        toggleBtn.classList.remove("disabled");
+        toggleBtn.classList.add("enabled");
+        statusLabel.textContent = "🚀 Phát hiện đang BẬT";
+      } else {
+        toggleBtn.classList.remove("enabled");
+        toggleBtn.classList.add("disabled");
+        statusLabel.textContent = "🛑 Phát hiện đang TẮT";
+      }
+    }
+
+    async function toggleDetection() {
+      const res = await fetch('/toggle_detection', { method: 'POST' });
+      const data = await res.json();
+      updateUI(data.enabled);
+    }
+
+    function changeSource() {
+      const src = document.getElementById('source-select').value;
+      fetch('/set_source', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({source: src})
+      }).then(res => {
+        if (res.ok) alert("Nguồn đã đổi thành công!");
+        else alert("Lỗi đổi nguồn!");
+      });
+    }
+
+    // Gọi 1 lần khi tải trang để hiển thị trạng thái đúng
+    fetch('/status')
+      .then(res => res.json())
+      .then(data => updateUI(data.enabled));
+
+    toggleBtn.onclick = toggleDetection;
+
+    // Kết nối WebSocket để nhận trạng thái tự động
+    const socket = new WebSocket(`ws://${location.host}/ws/status`);
+    socket.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      updateUI(data.enabled);
+    };
+  </script>
+</body>
+</html>
