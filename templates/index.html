@@ -1,73 +1,132 @@
 <!DOCTYPE html>
 <html>
+
 <head>
-  <meta charset="utf-8">
-  <title>Cat Tracker 🐱</title>
-  <style>
-    body {
-      font-family: Arial; background: #f2f2f2;
-      display: flex; flex-direction: column; align-items: center;
-    }
-    h1 { margin-top: 20px; }
-    video, img {
-      border: 3px solid #333; border-radius: 10px;
-      margin: 10px; width: 640px; height: 480px;
-    }
-    #status {
-      font-size: 18px; font-weight: bold; margin-top: 10px;
-    }
-  </style>
+    <meta charset="utf-8">
+    <title>Cat Tracker 🐱</title>
+    <style>
+        body {
+            font-family: Arial;
+            background: #f2f2f2;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 {
+            margin-top: 20px;
+        }
+
+        video,
+        img {
+            border: 3px solid #333;
+            border-radius: 10px;
+            margin: 10px;
+            width: 640px;
+            height: 480px;
+        }
+
+        #status {
+            font-size: 18px;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+    </style>
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#333333">
+
 </head>
+
 <body>
-  <h1>Live Cat Detection 🐾</h1>
+    <h1>Live Cat Detection 🐾</h1>
 
-  <!-- Webcam trực tiếp từ trình duyệt -->
-  <video id="webcam" autoplay playsinline></video>
+    <img id="frame" alt="Webcam or YOLO output" />
 
-  <!-- Kết quả YOLO từ server -->
-  <img id="processed" alt="Processed frame will appear here" />
 
-  <!-- Canvas ẩn để chụp ảnh -->
-  <canvas id="canvas" style="display: none;"></canvas>
 
-  <div id="status">⏳ Đang gửi và xử lý ảnh...</div>
+    <!-- Canvas ẩn để chụp ảnh -->
+    <canvas id="canvas" style="display: none;"></canvas>
 
-  <script>
-    const webcam = document.getElementById('webcam');
-    const canvas = document.getElementById('canvas');
-    const processed = document.getElementById('processed');
-    const status = document.getElementById('status');
+    <div id="status">⏳ Đang gửi và xử lý ảnh...</div>
 
-    // Bật webcam
-    navigator.mediaDevices.getUserMedia({ video: true }).then(stream => {
-      webcam.srcObject = stream;
-    });
+    <h3>Phát hiện YOLO</h3>
+    <button id="toggleBtn">Bật/Tắt phát hiện</button>
+    <span id="statusLabel">Đang tải...</span>
 
-    // Gửi ảnh mỗi 1s
-    setInterval(() => {
-      const ctx = canvas.getContext('2d');
-      canvas.width = webcam.videoWidth;
-      canvas.height = webcam.videoHeight;
-      ctx.drawImage(webcam, 0, 0, canvas.width, canvas.height);
+    <script>
+        const canvas = document.getElementById("canvas");
+        const img = document.getElementById("frame");
+        const status = document.getElementById("status");
 
-      canvas.toBlob(blob => {
-        const formData = new FormData();
-        formData.append("file", blob, "frame.jpg");
+        const toggleBtn = document.getElementById("toggleBtn");
+        const statusLabel = document.getElementById("statusLabel");
 
-        fetch("/upload_frame", {
-          method: "POST",
-          body: formData
-        })
-        .then(res => res.json())
-        .then(data => {
-          processed.src = "data:image/jpeg;base64," + data.result;
-          status.textContent = "✅ Đã xử lý!";
-        })
-        .catch(err => {
-          status.textContent = "❌ Lỗi xử lý: " + err;
+        let detectionEnabled = true;
+
+        function updateUI(isEnabled) {
+            detectionEnabled = isEnabled;
+            toggleBtn.textContent = isEnabled ? "Tắt phát hiện" : "Bật phát hiện";
+            statusLabel.textContent = isEnabled ? "🚀 Phát hiện ĐANG BẬT" : "🛑 Phát hiện đang TẮT";
+        }
+
+        async function toggleDetection() {
+            const res = await fetch("/toggle_detection", { method: "POST" });
+            const data = await res.json();
+            updateUI(data.enabled);
+        }
+
+        fetch("/status")
+            .then(res => res.json())
+            .then(data => updateUI(data.enabled));
+
+        toggleBtn.onclick = toggleDetection;
+
+        // Mở webcam
+        let stream;
+        navigator.mediaDevices.getUserMedia({ video: true }).then(s => {
+            stream = s;
+            const video = document.createElement("video");
+            video.setAttribute("muted", true); // 👈 thêm dòng này
+            video.srcObject = stream;
+            video.play();
+
+            // Cập nhật khung hình mỗi 1 giây
+            setInterval(() => {
+                const ctx = canvas.getContext("2d");
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+                canvas.toBlob(blob => {
+                    const formData = new FormData();
+                    formData.append("file", blob, "frame.jpg");
+
+                    fetch("/upload_frame", {
+                        method: "POST",
+                        body: formData
+                    })
+                        .then(res => res.json())
+                        .then(data => {
+                            img.src = "data:image/jpeg;base64," + data.result;
+                            status.textContent = detectionEnabled
+                                ? "✅ YOLO xử lý!"
+                                : "📷 Webcam nguyên bản";
+                        })
+                        .catch(err => {
+                            status.textContent = "❌ Lỗi xử lý: " + err;
+                        });
+                }, "image/jpeg");
+            }, 1000);
         });
-      }, "image/jpeg");
-    }, 1000); // gửi mỗi giây
-  </script>
+    </script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/static/service-worker.js')
+                .then(reg => console.log("SW registered"))
+                .catch(err => console.error("SW failed", err));
+        }
+    </script>
+
 </body>
+
 </html>

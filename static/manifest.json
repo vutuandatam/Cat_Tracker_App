@@ -1,0 +1,20 @@
+{
+  "name": "Cat Tracker App",
+  "short_name": "CatTracker",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f5f5f5",
+  "theme_color": "#333333",
+  "icons": [
+    {
+      "src": "/static/icons/anh nhi.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/static/icons/si lun.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
